@@ -406,9 +406,7 @@ class AdvInfo() :
             isMine = s.owner.id == myID 
             if DOLOG : logging.info("isMine {} myID {} s.owner {} s {}".format(\
                                      isMine, myID, s.owner.id,s))
-            if s.isMobile() and (not isMine or \
-                    not isCommanded(s.id) and \
-                    not getShipInfo(s).isAssigned) :
+            if s.isMobile() :
                 mult = 1 if isMine else -1
                 self.healthAdv += mult * s.health
                 self.shipAdv += mult
@@ -922,7 +920,7 @@ def checkDoMassRetreat(SIs) :
 
 ############################################################################
 
-game = hlt.Game('mellendo57')
+game = hlt.Game('mellendo59')
 
 hasDocked = False
 firstPlanetID = None
@@ -1093,7 +1091,7 @@ while True:
 ############################################################################
     circlePoints = []
     circleCapacity = extraMobiles // numCirclePoints
-    if len(player2histShips) >= 2 and circleCapacity > 0 and extraShips > 0 :
+    if len(player2histShips) >= 5 and circleCapacity > 0 and extraShips > 0 :
         circleRadius += 0.8
         # 360 moves 6 * r, so 360 * 2.5 / (6 * r) moves 2.5
         circleAngle += 360 * circleSpin / (numCirclePoints * circleRadius)

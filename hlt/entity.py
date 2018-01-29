@@ -135,34 +135,6 @@ class Entity:
         return self
 
     def getClumpTarget(self, target, targets, game_map):
-        # check for anything close
-        closestTarget = self.getClosest(targets)
-        if not closestTarget or \
-            self.calculate_distance_between(closestTarget) > \
-              constants.MAX_SPEED + 1 :
-            return target
-
-        # avoid other targets
-        numAtt = 3
-        obsts = game_map.obstacles_between(self, target, targets)
-        while obsts :
-           closestObst = self.getClosest(obsts)
-           if constants.DOLOG : 
-               logging.info("ship {} closestObst {} target {}".format(\
-                             self, closestObst, target))
-           if numAtt == 0 :
-               dist2cl = self.calculate_distance_between(closestObst)
-               shorter = self.closest_point_to(closestObst, dist2cl - 1.61)
-               if constants.DOLOG : 
-                  logging.info("ship {} shorter {} target {}".format(\
-                                self, shorter, target))
-               return shorter
-           numAtt -= 1
-           points = self.closestIntegralPoints(closestObst, target)
-           for point in points :
-              obsts = game_map.obstacles_between(self, point, targets)
-              if not obsts : return point
-           obsts = game_map.obstacles_between(self, points[0], targets)
         return target
 
     def closestIntegralPoints(self, obst, target):
@@ -498,7 +470,7 @@ class Ship(Entity):
             angle = nint(self.calculate_angle_between(target))
             angle = nint(self.getAngleForPassing(angle, closest))
             distance = self.calculate_distance_between(target)
-            newTarget = self.getTarget(angle, distance) # TODO check this function OK
+            newTarget = self.getTarget(angle, distance)
             target = copy.deepcopy(target)
             target.x = newTarget.x
             target.y = newTarget.y
@@ -506,16 +478,16 @@ class Ship(Entity):
 
     def navigate(self, target, game_map, obstLists,
                  maxSpeed=constants.MAX_SPEED, goHard=False, doFollow=False) :
-        distance = int(self.calculate_distance_between(target))
-        angle = nint(self.calculate_angle_between(target))
-        originalAngle = angle
+        distance = self.calculate_distance_between(target)
+        angle = self.calculate_angle_between(target)
+        originalAngle = nint(angle)
         firstObsts = obstLists.sitters if doFollow else obstLists.growObsts
         obsts = game_map.obstacles_between(self, target, firstObsts)
         if obsts :
             closest = self.getClosest(obsts)
             if constants.DOLOG : logging.info("n1 closest {} obsts {} ship {} ".format(\
                       closest, obsts, self))
-            angle = nint(self.getAngleForPassing(angle, closest))
+            angle = self.getAngleForPassing(angle, closest)
         if distance > maxSpeed :
             distance = maxSpeed
         target = self.getTarget(angle, distance)
@@ -524,44 +496,41 @@ class Ship(Entity):
 
         if doFollow :
             closeEnts = self.getCloseEntities(obstLists.allEntities, 14)
-            obstOneorMany = self.getFirstObst(target, closeEnts)
-            if obstOneorMany :
-               angle = nint(self.getAngleForPassing(angle, obstOneorMany))
-               target = self.getTarget(angle, distance)
-               if constants.DOLOG : 
-                   logging.info("nf target {} angle {} distance {} ship {} ".format(\
-                      target ,  angle ,  distance ,  self))
-               obstOneorMany = self.getFirstObst(target, closeEnts)
         else :
             closeEnts = self.getCloseEntities(obstLists.growObsts, 7)
-            obstOneorMany = game_map.obstacles_between(\
-                    self, target, closeEnts)
-        
-        if obstOneorMany :
-            target = None
-            #for ao in [4, -4, 8, -8, 16, -16, 32, -32, 64, -64] :
-            for ao in [4, -4, 16, -16, 64, -64 ] :
-            #for ao in [2, -2, 4, -4, 8, -8, 16, -16, 32, -32, 64, -64] :
-            #for ao in [8, -8, 24, -24, 72, -72 ] :
-                target = self.getTarget(angle + ao, distance)
-                if constants.DOLOG : logging.info("n2 target {} angle {} ao {} distance {} ship {} ".format(\
-                           target ,  angle ,  ao, distance ,  self))
+       
+        #from here, look at every possibility till all points further away
+        bestT = self
+        bestSD = target.squareDist(bestT)
+        a = nint(angle)
+        ao = 1 if a < angle else -1
+        for i in range(360) :
+            foundCloser = False
+            for d in range(1,8) :
+                t = self.getTarget(a, d)
+                sd2t = target.squareDist(t)
+                if sd2t > bestSD : continue
+                foundCloser = True
+                if self.targetIsOutsideMap(t, game_map) : continue
+                if constants.DOLOG : logging.info("n2 target {} angle {} a {} d {} ship {} ".format(\
+                           target ,  angle ,  a, d ,  self))
                 if doFollow :
-                    obstOneorMany = self.getFirstObst(target, closeEnts)
+                    obstOneorMany = self.getFirstObst(t, closeEnts)
                 else :
                     obstOneorMany = game_map.obstacles_between(\
-                            self, target, closeEnts)
-                if obstOneorMany :
-                    target = None
-                else :
-                    angle = angle + ao
-                    break
+                            self, t, closeEnts)
+                if not obstOneorMany :
+                    bestT = t
+                    bestSD = sd2t
+            if not foundCloser : break
+            a += ao
+            ao *= -1
+            ao += (1 if ao > 0 else -1)
+
+        target = bestT
+        distance = nint(self.calculate_distance_between(target))
+        angle = nint(self.calculate_angle_between(target))
         if target :
-            if self.targetIsOutsideMap(target, game_map) :
-                if maxSpeed < 1 :
-                    return None
-                return self.navigate(target, game_map,  obstLists, \
-                           maxSpeed = maxSpeed - 1, goHard=goHard, doFollow=doFollow) 
             #if originalAngle == angle and goHard and not doFollow :
             if originalAngle == angle and goHard :
                distance = maxSpeed
