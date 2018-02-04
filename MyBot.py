@@ -1019,8 +1019,9 @@ while True:
                 nearestOppAvg = oppAvg[nearestOppID]
     
     #basePoint = hlt.entity.Position(2*myAvg.x - allOppAvg.x,2*myAvg.y - allOppAvg.y)
-    baseX = 0 if myAvg.x < game_map.width / 2 else game_map.width
-    basePoint = hlt.entity.Position(baseX, game_map.height / 2)
+    #baseX = 0 if myAvg.x < game_map.width / 2 else game_map.width
+    #basePoint = hlt.entity.Position(baseX, game_map.height / 2)
+    basePoint = myAvg.getClosest(cornerPoints)
     centerPoint = hlt.entity.Position(game_map.width / 2, game_map.height / 2)
 
     if hlt.constants.DOLOG : logging.info("myAvg {} allOppAvg {} basePoint {} centerPoint {}".format(\
@@ -1259,11 +1260,14 @@ while True:
             break 
         ti = TIs[tii]
         entity = ti.entity
-        baseFrac = max(0, 0.75 * ((numStrongOpps - 1) / 2))
+        bf = 0.75 if hasDocked else 0.45
+        baseFrac = max(0, bf * ((numStrongOpps - 1) / 2))
         cf = .35 + .15 * (middlePlanets[0].num_docking_spots - 3)
         centerFrac = max(0, cf * ((1.5 - numStrongOpps) * 2))
         #tiAdd = entity.calculate_distance_between(basePoint) * baseFrac + \
-        tiAdd = abs(entity.x - basePoint.x) * baseFrac + \
+        baseDist = abs(entity.x - basePoint.x) if hasDocked else \
+                   abs(entity.y - basePoint.y)
+        tiAdd = baseDist * baseFrac + \
                 entity.calculate_distance_between(centerPoint) * centerFrac 
         for sii in range(len(SIs)):
             ship = SIs[sii].ship
